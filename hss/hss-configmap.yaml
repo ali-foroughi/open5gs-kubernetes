@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open5gs-hss-config
+  namespace: open5gs
+  labels:
+    epc-mode: hss
+data:
+  hss.yaml: |
+    db_uri: mongodb://172.17.93.121:27017/open5gs   
+    logger:
+        file: /var/log/open5gs/hss.log
+    
+    parameter:
+    
+    hss:
+        freeDiameter: /root/5g-assert/install/lib/x86_64-linux-gnu/freeDiameter/hss.conf

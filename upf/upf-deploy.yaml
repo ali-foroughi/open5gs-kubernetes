@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open5gs-upf-svc-pool
+  namespace: open5gs
+  labels:
+    epc-mode: upf
+spec:
+  ports:
+  - name: sxb
+    port: 8805
+    protocol: UDP
+  - name: sxu
+    port: 2152
+    protocol: UDP
+#  clusterIP: None   
+  selector:
+    epc-mode: upf    
+---
+apiVersion: apps/v1
+kind: StatefulSet 
+metadata:
+  name: open5gs-upf
+  namespace: open5gs
+  labels:
+    epc-mode: upf
+spec:
+  replicas: 1
+  serviceName: "open5gs-upf-svc-pool"
+  selector:
+    matchLabels:
+      epc-mode: upf
+  template:
+    metadata:          
+      labels:
+        epc-mode: upf
+    spec:
+      containers:
+        - name: upf
+          image: localhost:5000/open5gs-base:1.0
+          securityContext:
+            privileged: true
+            #sysctls:
+            #- name: net.ipv6.conf.all.disable_ipv6
+            #  value: 0
+            capabilities:
+              add: ["NET_ADMIN"]
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - ip tuntap add name ogstun mode tun;
+              ip addr add 192.168.0.0/16 dev ogstun;
+              sysctl -w net.ipv6.conf.all.disable_ipv6=0;
+              ip addr add cafe::1/64 dev ogstun;
+              ip link set ogstun up;
+              sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward";
+              iptables -t nat -A POSTROUTING -s 192.168.0.0/16 ! -o ogstun -j MASQUERADE;
+              /root/5g-assert/install/bin/open5gs-upfd -c /root/5g-assert/install/etc/open5gs/upf.yaml;
+          volumeMounts:
+          - name: open5gs-upf-config
+            mountPath: /root/5g-assert/install/etc/open5gs/upf.yaml
+            subPath: "upf.yaml"
+          - mountPath: /dev/net/tun
+            name: dev-net-tun            
+      volumes:
+        - name: open5gs-upf-config
+          configMap:
+            name: open5gs-upf-config            
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun

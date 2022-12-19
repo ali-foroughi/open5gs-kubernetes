@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open5gs-nrf-svc-pool
+  namespace: open5gs
+  labels:
+    epc-mode: nrf
+spec:
+  selector:
+    epc-mode: nrf
+  ports:
+    - protocol: TCP
+      port: 7777   
+---    
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: open5gs-nrf
+  namespace: open5gs
+  labels:
+    epc-mode: nrf
+spec:
+  replicas: 1
+  serviceName: "open5gs-nrf-svc-pool"
+  selector:
+    matchLabels:
+      epc-mode: nrf
+  template:
+    metadata:
+      labels:
+        epc-mode: nrf
+    spec:   
+      containers:
+        - name: nrf
+          image: reg.open5gs.local/open5gs/open5gs-base:1.0
+          imagePullPolicy: Always
+#          image: localhost:5000/open5gs-base:1.0
+          command: ["/root/5g-assert/install/bin/open5gs-nrfd", "-c", "/root/5g-assert/install/etc/open5gs/nrf.yaml"]
+          volumeMounts:
+            - name: open5gs-nrf-config
+              mountPath: /root/5g-assert/install/etc/open5gs/nrf.yaml
+              subPath: "nrf.yaml"
+      volumes:
+        - name: open5gs-nrf-config
+          configMap:
+            name: open5gs-nrf-config

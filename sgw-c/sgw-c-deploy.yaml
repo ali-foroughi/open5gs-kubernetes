@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open5gs-sgwc-svc-pool
+  annotations:
+    metallb.universe.tf/address-pool: second-pool
+  namespace: open5gs
+  labels:
+    epc-mode: sgw-c
+spec:
+  type: LoadBalancer
+  ports:
+  - name: s11
+    port: 2123
+    protocol: UDP
+  - name: sxa
+    port: 8805
+    protocol: UDP
+#  clusterIP: None 
+  selector:
+    epc-mode: sgw-c
+  sessionAffinity: ClientIP     
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: open5gs-sgw-c
+  namespace: open5gs
+  labels:
+    epc-mode: sgw-c
+spec:
+  replicas: 1
+  serviceName: "open5gs-sgwc-svc-pool"
+  selector:
+    matchLabels:
+      epc-mode: sgw-c
+  template:
+    metadata:
+      labels:
+        epc-mode: sgw-c
+    spec:
+      containers:
+        - name: sgwc
+          image: reg.open5gs.local/open5gs/open5gs-base:1.0
+          imagePullPolicy: IfNotPresent
+          command: ["/root/5g-assert/install/bin/open5gs-sgwcd", "-c", "/root/5g-assert/install/etc/open5gs/sgwc.yaml"]
+          volumeMounts:
+            - name: open5gs-sgwc-config
+              mountPath: /root/5g-assert/install/etc/open5gs/sgwc.yaml
+              subPath: "sgwc.yaml"
+      volumes:
+        - name: open5gs-sgwc-config
+          configMap:
+            name: open5gs-sgwc-config

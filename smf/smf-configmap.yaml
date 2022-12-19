@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open5gs-smf-config
+  namespace: open5gs
+  labels:
+    epc-mode: smf
+data:
+  smf.yaml: |
+    logger:
+        file: /var/log/open5gs/smf.log
+
+    parameter:
+        no_ipv6: true
+
+    smf:
+        sbi:
+           dev: eth0
+        gtpc:
+           dev: eth0
+        pfcp:
+           dev: eth0
+        gtpu:
+           dev: eth0
+        subnet:
+         - addr: 192.168.0.0/16
+           apn: internet
+           dev: ogstun
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
+           
+        mtu: 1400
+        freeDiameter: /root/5g-assert/install/etc/open5gs/diameter-smf.conf
+    upf:
+        pfcp:
+          - addr: 172.17.93.15
+            apn: internet
+    nrf:
+     sbi:
+      - name:
+        - open5gs-nrf-svc-pool
+        port: 7777

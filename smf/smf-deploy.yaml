@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open5gs-smf-svc-pool
+  annotations:
+    metallb.universe.tf/address-pool: second-pool
+  namespace: open5gs
+  labels:
+    epc-mode: smf
+spec:
+  type: LoadBalancer
+  ports:
+  - name: s5c 
+    port: 2123
+    protocol: UDP
+  - name: sxu
+    port: 2152
+    protocol: UDP
+  - name: sxb
+    port: 8805
+    protocol: UDP
+  - name: gx
+    port: 3868
+    protocol: SCTP
+  - name: sbi
+    port: 7777
+  selector:  
+    epc-mode: smf        
+  sessionAffinity: ClientIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: open5gs-smf
+  namespace: open5gs
+  labels:
+    epc-mode: smf
+spec:
+  replicas: 1
+  serviceName: "open5gs-smf-svc-pool"
+  selector:
+    matchLabels:
+      epc-mode: smf
+  template:
+    metadata:
+      labels:
+        epc-mode: smf
+    spec:
+      containers:
+        - name: smf
+          image: reg.open5gs.local/open5gs/open5gs-base:1.0
+          imagePullPolicy: Always
+          command: ["/root/5g-assert/install/bin/open5gs-smfd", "-c", "/root/5g-assert/install/etc/open5gs/smf.yaml"]
+          volumeMounts:
+          - name: open5gs-smf-config
+            mountPath: /root/5g-assert/install/etc/open5gs/smf.yaml
+            subPath: "smf.yaml"
+          - name: open5gs-smf-diameter
+            mountPath: /root/5g-assert/install/etc/open5gs/diameter-smf.conf
+            subPath: "diameter-smf.conf"               
+      volumes:
+        - name: open5gs-smf-config
+          configMap:
+            name: open5gs-smf-config
+        - name: open5gs-smf-diameter
+          configMap:
+            name: open5gs-smf-diameter 

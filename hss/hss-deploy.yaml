@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: open5gs-hss-svc-pool
+  namespace: open5gs
+  labels:
+    epc-mode: hss
+spec:
+  sessionAffinity: ClientIP
+  ports:
+  - name: s6a-3868-sctp
+    port: 3868
+    targetPort: 3868
+    protocol: SCTP
+  - name: s6a-5868-sctp
+    port: 5868
+    targetPort: 5868
+    protocol: SCTP
+      #  - name: s6a-3868-tcp
+      #    port: 3868
+      #    protocol: TCP
+      #  - name: s6a-5868-tcp
+      #    port: 5868
+      #    protocol: TCP
+  selector:
+    epc-mode: hss
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1
+kind: StatefulSet
+metadata:
+  name: open5gs-hss
+  namespace: open5gs
+  labels:
+    epc-mode: hss
+spec:
+  replicas: 1 
+  serviceName: "open5gs-hss-svc-pool"
+  selector:
+    matchLabels:
+      epc-mode: hss
+  template:
+    metadata:
+     labels:
+        epc-mode: hss
+        level: pod
+     annotations:
+       cni.projectcalico.org/ipv4pools: '["default-ipv4-ippool"]'
+    spec:
+      containers:
+        - name: hss
+#          image: reg.open5gs.local/open5gs/open5gs:base:2.0
+          image: reg.open5gs.local/open5gs/open5gs-base:1.0
+          imagePullPolicy: IfNotPresent
+          command: ["/root/5g-assert/install/bin/open5gs-hssd", "-c", "/root/5g-assert/install/etc/open5gs/hss.yaml"]
+          volumeMounts:
+          - name: open5gs-hss-config
+            mountPath: /root/5g-assert/install/etc/open5gs/hss.yaml
+            subPath: "hss.yaml"
+          - name: open5gs-hss-diameter
+            mountPath: /root/5g-assert/install/lib/x86_64-linux-gnu/freeDiameter/hss.conf
+            subPath: "diameter-hss.conf"            
+          - name: hss-persistent-storage
+            mountPath: /var/log/open5gs
+      volumes:
+      - name: open5gs-hss-config
+        configMap:
+          name: open5gs-hss-config
+      - name: open5gs-hss-diameter
+        configMap:
+          name: open5gs-hss-diameter
+      - name: hss-persistent-storage
+        persistentVolumeClaim:
+          claimName: hss-claim
